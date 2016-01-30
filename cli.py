@@ -1,11 +1,11 @@
 # coding: utf-8
 import os
 import logging
+import click
 import asyncio
 import aiohttp
 import lxml.html
 from urllib.parse import unquote
-from optparse import OptionParser
 
 try:
     from asyncio import JoinableQueue as Queue
@@ -23,12 +23,13 @@ def filename_from_url(url):
 
 
 class RecordTracksCrawler:
-    def __init__(self, station_url, loop=None):
+    def __init__(self, station_url, output_dir='data/', loop=None):
         self.loop = loop or asyncio.get_event_loop()
         self.max_tasks = 8
         self.q = Queue()
         self.session = aiohttp.ClientSession(loop=self.loop)
         self.station_url = station_url
+        self.output_dir = output_dir
 
     def close(self):
         self.session.close()
@@ -37,7 +38,8 @@ class RecordTracksCrawler:
         doc = lxml.html.document_fromstring(content)
         for track in doc.xpath('//div[@class="top100_media"]//a'):
             url = track.attrib['href'].strip()
-            url = url.split('download.php?url=')[1]
+            # LOGGER.debug('url href: %r', url)
+            # url = url.split('download.php?url=')[1]
 
             if url:
                 yield url
@@ -91,9 +93,9 @@ class RecordTracksCrawler:
             pass
 
     @asyncio.coroutine
-    def download(self, url, output_dir='data/'):
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+    def download(self, url):
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
 
         r = yield from self.session.get(url)
         if not r.status == 200:
@@ -101,7 +103,7 @@ class RecordTracksCrawler:
             return
 
         try:
-            filename = os.path.join(output_dir, filename_from_url(url))
+            filename = os.path.join(self.output_dir, filename_from_url(url))
             with open(filename, 'wb') as fp:
                 while True:
                     chunk = yield from r.content.read(1024)
@@ -113,10 +115,18 @@ class RecordTracksCrawler:
             yield from r.release()
 
 
-def main(options, args):
-    station_url = "%s%s.txt" % (RADIORECORD_TRACKLIST, args[0])
+@click.command()
+@click.argument('station', required=1)
+@click.option('--output', default='data/', type=click.Path(), help='Output directory to downloaded files')
+@click.option('-v', '--verbose', default=False, is_flag=True, help='Increase output verbosity')
+def main(station, output, verbose):
+    """This script will download top-100 track for selected <STATION>."""
+    if verbose:
+        logging.basicConfig(level=logging.INFO)
+
+    station_url = "%s%s.txt" % (RADIORECORD_TRACKLIST, station)
     loop = asyncio.get_event_loop()
-    crawler = RecordTracksCrawler(station_url)
+    crawler = RecordTracksCrawler(station_url, output)
 
     try:
         loop.run_until_complete(crawler.crawl())
@@ -132,30 +142,5 @@ def main(options, args):
 
         loop.close()
 
-
 if __name__ == '__main__':
-    usage = """Usage: %prog [options] STATION
-    This script will download top-100 track for selected STATION.
-    """
-
-    parser = OptionParser(usage=usage)
-    parser.add_option('-o', '--output', dest="output",
-                    help="Output directory to write tracks", default='data/'
-    )
-    parser.add_option('--skip-exists', dest="skip",
-                    help="Skip existed (downloaded) files", 
-                    default=False, action='store_true'
-    )
-    parser.add_option('-v', "--verbose", dest="verbose", 
-                    action="store_true", default=False,
-                    help="Increase output verbosity"
-    )
-    (options, args) = parser.parse_args()
-    
-    if len(args) != 1:
-        parser.error("Please select a station!")
-
-    if options.verbose:
-        logging.basicConfig(level=logging.INFO)
-
-    main(options, args)
+    main()
