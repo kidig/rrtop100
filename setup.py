@@ -3,7 +3,7 @@ RadioRecord Top Hits Downloader
 """
 from setuptools import find_packages, setup
 
-dependencies = ['click==6.6', 'aiohttp==0.22.5']
+dependencies = ['click==6.6', 'aiohttp==0.22.5', 'lxml==3.6.1']
 
 setup(
     name='rrtop100',
@@ -39,10 +39,9 @@ setup(
         'Operating System :: POSIX',
         'Operating System :: MacOS',
         'Operating System :: Unix',
-        'Operating System :: Windows',
+        'Operating System :: Microsoft :: Windows',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.5',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ]
 )
