@@ -10,7 +10,7 @@ Here are [installation instructions](https://github.com/mitsuhiko/pipsi#readme).
 
 Simply run:
 
-    $ pipsi install .
+    $ pipsi install rrtop100 --python python3.5
 
 
 # Usage
